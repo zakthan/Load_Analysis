@@ -1,0 +1,41 @@
+#!/bin/bash
+
+high_cpu_processes () {
+
+cat /dev/null > /tmp/high_cpu_processes.txt ##keep top 5 consuming CPU processes
+cat /dev/null > /tmp/high_cpu_processes_sorted.txt  ##keep top 5 consuming CPU processes that are > $CPU_THRESHOLD_PERCENTANCE
+cat /dev/null > /tmp/high_cpu_processes_sorted_tmp.txt 
+cat /dev/null > /tmp/high_cpu_processes_pids.txt ##keep pids of top consuming CPU processes that are > $CPU_THRESHOLD_PERCENTANCE
+cat /dev/null > /tmp/high_cpu_processes_tomcat_pids.txt ##keep pids of top consuming CPU TOMCAT processes that are > $CPU_THRESHOLD_PERCENTANCE
+
+##find all top consuming processes (user,pid,cpu,cmd) and keep all of them that are > $CPU_THRESHOLD_PERCENTANCE inside /tmp/high_cpu_processes_sorted.txt file
+#####ps aux | sort -nrk 3,3 | head -n $TOP_X_PROCESSES|awk '{print $1 " " $2 " " $3 " " $NF}' > /tmp/high_cpu_processes.txt
+top -c -b -n 1|egrep -v "Tasks|Cpu|Mem|Swap|PID|load average"|sed "/^$/d"|head -n $TOP_X_PROCESSES|awk '{print $1 " " $2 " " $9 " " $NF}' > /tmp/high_cpu_processes.txt
+awk -v var="$CPU_THRESHOLD_PERCENTANCE" '{ print ($3 > var ) ? $0 : "false" }' /tmp/high_cpu_processes.txt  > /tmp/high_cpu_processes_sorted_tmp.txt
+egrep -v false /tmp/high_cpu_processes_sorted_tmp.txt > /tmp/high_cpu_processes_sorted.txt
+
+##write log
+echo --------------------------------------------------- >> $LOG_PATH/high_cpu_processes.log
+echo timestamp $DATE >> $LOG_PATH/high_cpu_processes.log
+echo "USER   PID  CPU%  ARG" >> $LOG_PATH/high_cpu_processes.log
+cat /tmp/high_cpu_processes_sorted.txt >> $LOG_PATH/high_cpu_processes.log
+echo --------------------------------------------------- >> $LOG_PATH/high_cpu_processes.log
+
+##keep process ids in a file
+awk '{print $1}' /tmp/high_cpu_processes_sorted.txt > /tmp/high_cpu_processes_pids.txt
+
+##keep TOMCAT_PIDs that are consuming  more than  $CPU_THRESHOLD_PERCENTANCE in a seperate file  
+while IFS= read -r TOMCAT_PID
+do
+	grep $TOMCAT_PID /tmp/high_cpu_processes_pids.txt >/dev/null && echo $TOMCAT_PID >> /tmp/high_cpu_processes_tomcat_pids.txt
+done <<< "$TOMCAT_PIDs"
+
+##print TOMCAT_PIDs that are consuming  more than  $CPU_THRESHOLD_PERCENTANCE to output
+if [[ -s /tmp/high_cpu_processes_tomcat_pids.txt ]] 
+then
+	echo "$DATE Application server proccesses consuming more than $CPU_THRESHOLD_PERCENTANCE% CPU are $(cat /tmp/high_cpu_processes_tomcat_pids.txt| tr "\n" " ")"
+fi
+
+##if no AS proccess found that consume more than CPU_THRESHOLD_PERCENTANCE  script return false
+if [[ !(-s /tmp/high_cpu_processes_tomcat_pids.txt) ]] ; then echo "$DATE No Application server proccesses consuming more than $CPU_THRESHOLD_PERCENTANCE% CPU";return 1 ;fi
+}

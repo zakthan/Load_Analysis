@@ -1,0 +1,30 @@
+#####USER DEFINED VARIABLES START########
+SCIPT_HOME=/root/scripts/load
+TOP_X_PROCESSES=5 ##number of top cpu processes returned
+JAVA_HOME=/liferay/java
+DUMP_PATH=/netapp/load_analysis/"$HOST"/dumps
+##MAILLIST="azakopoulos@ote.gr"
+MAILLIST="middleware@ote.gr alert@open.gr"
+LOAD_AVERAGE_THRESHOLD=5
+CPU_THRESHOLD_PERCENTANCE=200
+CPU_THREAD_THRESHOLD_PERCENTANCE=50
+#####USER DEFINED VARIABLES STOP########
+
+
+##keep timestamp in a format that log timestamps for each AS can be found
+YEAR=`date '+%Y'`
+MONTH=`date '+%m'`
+DAY=`date '+%d'`
+HOUR=`date '+%H'`
+MINUTE=`date '+%M'`
+SECOND=`date '+%S'`
+DATE=$YEAR.$MONTH.$DAY.$HOUR.$MINUTE.$SECOND
+####TOMCAT_LOG_DATE="$YEAR-$MONTH-$DAY $HOUR:$MINUTE:$SECOND"
+##for tomcat do not include $YEAR-$MONTH-$DAY  because in some versions it is not there. Therefore for catalina.out daily rotation is needed
+TOMCAT_LOG_DATE="$HOUR:$MINUTE:$SECOND"
+##
+HOST=`hostname -s`
+LOG_PATH=$SCIPT_HOME/logs
+LOAD_AVERAGE_CURRENT=`cat /proc/loadavg|awk '{print $1}'`
+JAVA_BIN="$JAVA_HOME"/bin
+TOMCAT_PIDs=`ps -ef|grep "org.apache.catalina.startup.Bootstrap start"|egrep -v grep|awk '{print $2}'`

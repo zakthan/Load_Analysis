@@ -1,0 +1,21 @@
+#!/bin/bash
+
+SCRIPT_HOME=/root/scripts/load
+source $SCRIPT_HOME/enviromental_variables
+
+top_cpu_threads_per_pid () {
+ PROC_PID=$1
+ top -H -p  $PROC_PID -b -n 1 > /tmp/top_CPU_"$PROC_PID"_"$DATE"
+
+awk -v var="$CPU_THREAD_THRESHOLD_PERCENTANCE" '{ print ($9 > var ) ? $0 : "false" }' /tmp/top_CPU_"$PROC_PID"_"$DATE"  > /tmp/top_CPU_"$PROC_PID"_"$DATE"_sorted.tmp
+egrep -v "false|top|Tasks|Cpu|Mem|Swap" /tmp/top_CPU_"$PROC_PID"_"$DATE"_sorted.tmp > /tmp/top_CPU_"$PROC_PID"_"$DATE"_sorted
+
+##return the IDs of the Threads consuming CPU for a certain process
+echo $(cat /tmp/top_CPU_"$PROC_PID"_"$DATE"_sorted|awk '{print $1}'|tr "\n" " ")
+
+rm /tmp/top_CPU_"$PROC_PID"_"$DATE"_sorted.tmp
+rm /tmp/top_CPU_"$PROC_PID"_"$DATE"
+
+##tmp till properly implent. File /tmp/top_CPU_"$PROC_PID"_"$DATE"_sorted is used from dump_and_threads func. After proper implementation this file should be deleted
+##rm /tmp/top_CPU_"$PROC_PID"_"$DATE"_sorted
+}

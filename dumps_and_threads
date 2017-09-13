@@ -1,0 +1,64 @@
+#!/bin/bash
+SCRIPT_HOME=/root/scripts/load
+source $SCRIPT_HOME/enviromental_variables
+source $SCRIPT_HOME/top_cpu_threads_per_pid
+source $SCRIPT_HOME/stored_hex_threads_nids
+source $SCRIPT_HOME/thread_dump_tomcat
+
+function get_tomcat_log_path () {
+PROC_PID=$1
+CATALINA=$(ps -ef|grep $PROC_PID|tr " " "\n"|grep Dcatalina.home|tr "=" " "|awk '{print $2}')
+##return $CATALINA
+echo $CATALINA
+}
+
+##reads all hex thread ids for a certain process inside a thread dump and returns their names
+function find_thread () {
+	PROC_PID=$1
+	HEX_THREAD_NIDs=${*:2}
+	while IFS='' read -r line || [[ -n "$line" ]]
+        do
+		for HEX_THREAD_NID in $line
+		do 
+    	   		grep $HEX_THREAD_NID $DUMP_PATH/thread_dump_"$PROC_PID"_"$DATE" |awk '{print $1}'|tr -d "\"" >> $DUMP_PATH/thread_name_"$PROC_PID"_"$DATE"
+		done
+	done <<< "$HEX_THREAD_NIDs"
+	
+	##return thread name for $PROC_PID as found inside thread dump
+	echo $(cat $DUMP_PATH/thread_name_"$PROC_PID"_"$DATE"|tr "\n" " ")
+
+}
+
+function grep_tomcat_log () {
+##this function checks what a certain thread was doing for the last 10 seconds. This is done by removing last digit of $SECONDS variable
+ TOMCAT_LOG_DATE=${TOMCAT_LOG_DATE%?}   
+        TOMCAT_HOME=$1
+        PROC_PID=$2
+	THREAD_NAMES=${*:3}
+	for THREAD_NAME in $THREAD_NAMES
+        	do
+           		grep "$THREAD_NAME" $TOMCAT_HOME/logs/catalina.out | grep "$TOMCAT_LOG_DATE" >> $DUMP_PATH/thread_log_"$PROC_PID"_"$DATE"
+        	done 
+}
+
+function dumps_and_threads () {
+ PROC_PID=$1
+ THREAD_IDs=`top_cpu_threads_per_pid $PROC_PID`
+ ##if no CPU consuming threads are found  according to CPU_THREAD_THRESHOLD_PERCENTANCE variable do nothing else continue debbuging
+ if [ -z "$THREAD_IDs" ] 
+ 	then
+		 echo "$DATE No high cpu threads (CPU more than $CPU_THREAD_THRESHOLD_PERCENTANCE%) for $PROC_PID"
+	else
+		echo "$DATE High cpu threads (CPU more than $CPU_THREAD_THRESHOLD_PERCENTANCE%) for $PROC_PID are $THREAD_IDs"
+		##tmp print to standard output till I fix it with argument for func op_cpu_threads_per_pid
+		cat /tmp/top_CPU_"$PROC_PID"_"$DATE"_sorted
+		rm /tmp/top_CPU_"$PROC_PID"_"$DATE"_sorted
+		##
+ 		HEX_THREAD_NIDs=$(stored_hex_threads_nids $PROC_PID $THREAD_IDs)
+		thread_dump_tomcat $PROC_PID
+ 		THREAD_NAMES=$(find_thread $PROC_PID $HEX_THREAD_NIDs)
+		TOMCAT_HOME=$(get_tomcat_log_path $PROC_PID)
+		grep_tomcat_log $TOMCAT_HOME $PROC_PID $THREAD_NAMES	
+
+ fi
+}

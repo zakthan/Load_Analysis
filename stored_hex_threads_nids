@@ -1,0 +1,20 @@
+#!/bin/bash
+
+SCRIPT_HOME=/root/scripts/load
+source $SCRIPT_HOME/enviromental_variables
+
+convert_dec_to_hex_and_lowercase () {
+NUMBER=$1
+echo "obase=16; $NUMBER" | bc| awk '{print tolower($0)}'
+}
+
+stored_hex_threads_nids () {
+PROC_ID=$1
+##2nd argument till the last one
+DEC_NIDs=${*:2}
+for DEC_NID in $DEC_NIDs
+        do 
+          convert_dec_to_hex_and_lowercase $DEC_NID >>  /tmp/hex_thread_nids_"$PROC_ID"_"$DATE"
+        done 
+echo $(cat /tmp/hex_thread_nids_"$PROC_ID"_"$DATE"|tr "\n" " ")
+}

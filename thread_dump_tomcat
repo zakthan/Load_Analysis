@@ -1,0 +1,10 @@
+#!/bin/bash
+
+SCRIPT_HOME=/root/scripts/load
+source $SCRIPT_HOME/enviromental_variables
+
+thread_dump_tomcat () {
+ PROC_PID=$1
+ USER=`ps -ef|grep $PROC_PID|egrep -v "grep|top_CPU"|awk '{print $1}'`
+ su - $USER -c "$JAVA_BIN/jstack -l $PROC_PID > $DUMP_PATH/thread_dump_"$PROC_PID"_"$DATE""
+}
